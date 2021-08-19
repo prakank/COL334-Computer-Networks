@@ -1,5 +1,4 @@
 # references:
-#   Learning by doing: Writing your own traceroute in 8 easy steps (Ksplice Blog)
 #   https://blogs.oracle.com/ksplice/entry/learning_by_doing_writing_your
 
 import sys
@@ -7,7 +6,7 @@ import socket
 import time
 import matplotlib.pyplot as plt
 
-MAX_HOPS = 30
+MAX_HOPS = 64
 # HOST = socket.gethostbyname(socket.gethostname())
 HOST = ''
 
@@ -45,8 +44,9 @@ def traceroute(dest_addr, max_hops=MAX_HOPS, timeout=0.2):
         if curr_addr == dest_addr:
             break
 
-def graph(data):
+def graph(data, dest_name, dest_addr):
     plt.plot(data)
+    plt.title(dest_name + " (" + dest_addr + ")")
     plt.savefig("output.jpg")
     plt.show()    
 
@@ -60,8 +60,8 @@ if __name__ == "__main__":
     
     for i, v in enumerate(traceroute(dest_addr)):
         print("{}\t{}\t\t{}".format(i+1, v[1], v[0]))
-        if(v[1] == "*"):
+        if(v[1] == "  *  "):
             data.append(0)
         else:
             data.append(float(v[1][:len(v[1])-2]))
-    graph(data)
+    graph(data, dest_name, dest_addr)
