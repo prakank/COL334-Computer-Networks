@@ -7,7 +7,7 @@ import time
 import matplotlib.pyplot as plt
 
 MAX_HOPS = 15
-TIMEOUT = 0.4
+TIMEOUT = 0.002
 HOST = ''
 # HOST = socket.gethostbyname(socket.gethostname())
 
@@ -17,14 +17,14 @@ def tr(host_addr, max_hops = MAX_HOPS, timeout = TIMEOUT):
     udp = socket.getprotobyname('udp')
     PORT = 5000
 
-    for ttl in range(1, max_hops+1):
+    for time_to_live in range(max_hops):
         initial_time = time.time()
         receive = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
         receive.settimeout(timeout)
         receive.bind((HOST, PORT))
         
         transmit = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, udp)
-        transmit.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
+        transmit.setsockopt(socket.SOL_IP, socket.IP_TTL, time_to_live+1)
         transmit.sendto(b'Hello World!', (host_addr, PORT))
 
         try:
