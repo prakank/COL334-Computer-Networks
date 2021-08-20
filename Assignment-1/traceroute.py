@@ -6,7 +6,7 @@ import socket
 import time
 import matplotlib.pyplot as plt
 
-MAX_HOPS = 30
+MAX_HOPS = 15
 TIMEOUT = 0.4
 HOST = ''
 # HOST = socket.gethostbyname(socket.gethostname())
@@ -47,6 +47,8 @@ def tr(host_addr, max_hops = MAX_HOPS, timeout = TIMEOUT):
 def graph(data, dest_name, dest_addr):
     plt.plot(data)
     plt.title(dest_name + " (" + dest_addr + ")")
+    plt.xlabel("Hops")
+    plt.ylabel("Round Trip Time (RTT) (ms)")
     plt.savefig("output.jpg")
     plt.show()    
 
@@ -78,7 +80,7 @@ if __name__ == "__main__":
     data = []
     
     for i, tup in enumerate(tr(host_addr)):
-        print("{}\t{}\t\t{}".format(i+1, tup[1], tup[0]))
+        print("{}\t{}\t\t{}".format(i+1, tup[0], tup[1]))
         if(tup[1] == "  *  "):
             data.append(0)
         else:
