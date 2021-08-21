@@ -1,7 +1,10 @@
+#General
 *.odt#
+*.zip
 Socket_Programming
+
+# Assignment-1
 Assignment-1/pytraceroute
 Assignment-1/ping_.py
-*.zip
 Assignment-1/traceroute.py
 Assignment-1/report.odt
