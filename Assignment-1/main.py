@@ -47,26 +47,26 @@ class Traceroute():
         self.ttl  = 1
         self.data = [0]
         
-    def graph(self):        
+    def graph(self):
         y = np.arange(0,self.ttl+1)
         
         plt.plot(self.data)
-        plt.title(self.hostname + " (" + self.host_addr + ")")
+        plt.title("RTT vs Hop Number\n" + self.hostname + " (" + self.host_addr + ")")
         plt.xlabel("Hops")
         plt.ylabel("Round Trip Time (RTT) (ms)")
         plt.xticks(y)
         for i in range(1,len(y)):
-            plt.annotate(i, (y[i],self.data[i] + 0.4))
+            plt.annotate("(" + str(i) + "," + str(round(self.data[i],1)) + ")", (y[i],self.data[i] + 0.2))
         plt.savefig("output_line.jpg")
         plt.show()
         
-        plt.title(self.hostname + " (" + self.host_addr + ")")
+        plt.title("RTT vs Hop Number\n" + self.hostname + " (" + self.host_addr + ")")
         plt.xlabel("Hops")
         plt.ylabel("Round Trip Time (RTT) (ms)")
         plt.xticks(y)
         plt.scatter(y,self.data)
         for i in range(len(y)):
-            plt.annotate(i+1, (y[i],self.data[i] + 0.4))
+            plt.annotate("(" + str(i) + "," + str(round(self.data[i],1)) + ")", (y[i],self.data[i] + 0.2))
         plt.savefig("output_scatter.jpg")
         plt.show()
     
@@ -101,10 +101,10 @@ class Traceroute():
 
         return receive
     
-    def init_transmitter(self):        
+    def init_transmitter(self):
         proto_udp   = socket.getprotobyname('udp')
         transmitter = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, proto_udp)
-        transmitter.setsockopt(socket.SOL_IP, socket.IP_TTL, self.ttl)        
+        transmitter.setsockopt(socket.SOL_IP, socket.IP_TTL, self.ttl)
         return transmitter
     
     def start(self):

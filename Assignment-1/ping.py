@@ -1,7 +1,5 @@
 import os
 
-hostname = "www.youtube.com"
-
 START = {"www.facebook.com":1471, "www.google.com":67, "www.iitd.ac.in":1471, "www.codeforces.com":1471, "www.youtube.com":67}
 # Storing the max_size-1 in START so as to minimize the number of ping commnads for the next time
 # Storing max_size-1 so as to make sure that the max_size value is attained
@@ -12,7 +10,7 @@ TTL_MAX_SIZE = 255
 threshold_pack_size = 1
 threshold_ttl       = 1
 
-CLEAR = True
+CLEAR = False
 
 def packet_size(List):
     max_pack_size = {}
