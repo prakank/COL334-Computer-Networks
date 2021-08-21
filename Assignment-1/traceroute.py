@@ -6,8 +6,8 @@ import socket
 import time
 import matplotlib.pyplot as plt
 
-MAX_HOPS = 15
-TIMEOUT = 0.002
+MAX_HOPS = 30
+TIMEOUT = 0.4
 HOST = ''
 # HOST = socket.gethostbyname(socket.gethostname())
 
@@ -24,14 +24,18 @@ def tr(host_addr, max_hops = MAX_HOPS, timeout = TIMEOUT):
         receive.bind((HOST, PORT))
         
         transmit = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, udp)
+        print("DEBUG",time_to_live+1)
         transmit.setsockopt(socket.SOL_IP, socket.IP_TTL, time_to_live+1)
         transmit.sendto(b'Hello World!', (host_addr, PORT))
 
-        try:
-            ending_time = time.time()
-            elapsed_time = str((ending_time - initial_time)*100000)[:4] + "ms"
+        try:            
             _, curr_addr = receive.recvfrom(512)
+            
+            ending_time = time.time()
+            elapsed_time = str((ending_time - initial_time)*1000)[:4] + "ms"
+            
             curr_addr = curr_addr[0]
+            
         except socket.error:
             curr_addr = "Request timed out"
             elapsed_time = "  *  "
