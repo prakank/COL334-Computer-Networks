@@ -2,9 +2,18 @@
 *.odt#
 *.zip
 Socket_Programming
+Chatroom
 
 # Assignment-1
 Assignment-1/pytraceroute
 Assignment-1/ping_.py
 Assignment-1/traceroute.py
 Assignment-1/report.odt
+
+#Assignment-2
+Assignment-2/tcpclient.java
+Assignment-2/tcpserver.java
+Assignment-2/CryptographyExample.java
+Assignment-2/*.class
+Assignment-2/sample.py
+Assignment-2/*.java
