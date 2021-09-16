@@ -4,6 +4,7 @@ from _thread import *
 import sys
 import re
 import subprocess
+import argparse
 
 FORMAT = 'utf-8'
 HEADER_LENGTH = 200
@@ -152,12 +153,17 @@ class TCP_Client:
             return
                                           
 if __name__ == '__main__':
-    host = "127.0.0.1"
-    port = 10000
-    client = TCP_Client(host, port)
     
     port_pattern = re.compile(r"^[0-9]+$")
     ip_pattern = re.compile(r"^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$")
+    
+    parser = argparse.ArgumentParser()
+    opt = parser.parse_args()
+        
+    host = "127.0.0.1"
+    port = 10000
+    
+    client = TCP_Client(host, port)
     
     # if len(sys.argv) != 3:
     #     raise IOError('Incorrect arguments')

@@ -3,6 +3,7 @@ import threading
 from _thread import *
 import sys
 import re
+import argparse
 
 FORMAT = 'utf-8'
 HEADER_LENGTH = 200
@@ -182,10 +183,16 @@ class Handle_Client:
                 
         
 if __name__ =="__main__":
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n", type=int,default=10,help="Maximum Number of Connections")
+    opt = parser.parse_args()
+    
+    max_clients = int(opt.n)    
     host = "127.0.0.1"
     port = 10000
-    max_Clients = 10
-    server = TCP_Server(host, port, max_Clients)
+    
+    server = TCP_Server(host, port, max_clients)
     
     port_pattern = re.compile(r"^[0-9]+$")
     ip_pattern = re.compile(r"^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$")
