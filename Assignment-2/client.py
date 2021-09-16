@@ -64,11 +64,14 @@ class client_sender:
                 # print(recipient)
                 
                 if response == "SEND " + recipient + "\n\n":
-                    print("Message delivered successfully")
+                    # print("Message delivered successfully")
+                    print("",end="")
                 elif response.split(" ")[1] == "102":
                     print("ERROR 102 Unable to send (Recipient not registered)")
                 elif response.split(" ")[1] == "103":
                     print("ERROR 103 Header Incomplete")
+                    print("Connection Closed ...")
+                    return
                 elif response.split("\n")[0] == "ERROR 101 No user registered ":
                     print("ERROR 101: Incomplete Registration")
         except:
@@ -103,7 +106,7 @@ class client_receiver:
                 print(sender + ": " + message)
                 self.recvSocket.send(("RECEIVED " + sender + "\n\n").encode(FORMAT))
             else:
-                self.recvSocket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))
+                self.recvSocket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))                
 
 class TCP_Client:
     def __init__(self, host, port):
