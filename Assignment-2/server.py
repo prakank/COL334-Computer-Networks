@@ -1,178 +1,147 @@
 import socket
-import sys
-import os
-import select
 import threading
+from _thread import *
+import sys
+import re
 
-HEADER = 64
-PORT = 5051
 FORMAT = 'utf-8'
-SERVER = socket.gethostbyname(socket.gethostname())
-ADDR = (SERVER, PORT)
+HEADER_LENGTH = 200
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind(ADDR)
+def receive_message(client_socket):
+    try:
+        message_header = client_socket.recv(HEADER_LENGTH).decode(FORMAT)
+        return message_header
+        # print(message_header, len(message_header))
+        # if len(message_header):
+        #     message_length = int(message_header.decode(FORMAT))
+        #     return client_socket.recv(message_length).decode(FORMAT)    
+    except:
+        print(sys.exc_info[0])
+        raise Exception("")
 
-list_of_clients = {}
-sockets_list = {'server':server_socket}
-
-def registration(client_socket, client_address):
-    pass
-
-
-def handle_client(client_socket, client_address):
-    username = registration(client_socket, client_address)
-    connected = True
-    while connected:
-        msg_length = client_socket.recv(HEADER).decode(FORMAT) # Blocking line
-        if msg_length:
-            msg_length = int(msg_length)
-            msg = client_socket.recv(msg_length).decode(FORMAT)
+# def send_message(message, client_socket):
+#     try:
+#         client_socket.send()
+    
+class TCP_Server:
+    
+    sendSocket_list = {}
+    recvSocket_list = {}    #static
+    
+    def __init__(self, host, port):
+        try:
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind((host, port))
+        except socket.error as err:
+            raise IOError('Unable to bind receiver socket: {}'.format(err))                
+        self.start()
         
-            if msg == "DISCONNECT_MESSAGE":
-                connected = False
+    
+    def start(self):
+        self.server_socket.listen()
+        i = 0
+        while True:
+            print("Value" + str(i))
+            client_socket, client_address = self.server_socket.accept()
+            i+=1
+            client_handler = Handle_Client(client_socket)
+            thread10 = threading.Thread(target=client_handler.run)
+            thread10.start()
+
+
+class Handle_Client:
+    def __init__(self, client_socket):
+        self.client_socket   = client_socket        
+        self.username        = ""
+        
+    def run(self):
+        username_pattern = re.compile(r"^[A-Za-z0-9]+$")
+        
+        while True:
+            line = receive_message(self.client_socket)
+            if line.split(" ")[0] == "REGISTER" and line.split(" ")[1] == "TOSEND":
+                username = (line.split(" ",2)[2]).split("\n")[0]
+                print(username)
+                if bool(re.match(username_pattern, username)):
+                    self.client_socket.send(("REGISTERED TOSEND " + username + '\n \n').encode(FORMAT))
+                    self.username = username
+                    TCP_Server.sendSocket_list[username] = self.client_socket
+                    self.conversation_begin()
+                    return
+                else:
+                    self.client_socket.send(("ERROR 100 Malformed username\n \n").encode(FORMAT))
+                    continue
+                
+            elif line.split(" ")[0] == "REGISTER" and line.split(" ")[1] == "TORECV":
+                username = line.split(" ",2)[2]
+                if username in TCP_Server.sendSocket_list.keys():
+                    self.client_socket.send(("REGISTERED TORECV " + username + '\n \n').encode(FORMAT))
+                    self.username = username
+                    TCP_Server.recvSocket_list[username] = self.client_socket
+                    return
+                
+                elif not bool(re.match(username_pattern, username)):
+                    self.client_socket.send(("ERROR 100 Malformed username\n \n").encode(FORMAT))
+                else:
+                    self.client_socket.send(("ERROR 101 No user registered \n \n").encode(FORMAT))
             
-            print(f"[{addr}] {msg}")
-            client_socket.send("Msg received".encode(FORMAT))        
-    client_socket.close()
+            else:
+                self.client_socket.send(("ERROR 101 No user registered \n \n").encode(FORMAT))
     
-        
-def main():
-    server_socket.listen()    
-    while True:
-        client_socket, client_address = server_socket.accept()   # Blocking line
-        thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
-        thread.start()
-        
-    
-        # print(f"[ACTIVE CONNECTIONS] {threading.activeCount() - 1}\n")
-    # print(f"[LISTENING] Server is listening on ({SERVER}, {PORT})\n")
-    # while True:
-    #     readable, writable, exceptional = select.select(sockets_list, [], sockets_list)
-        
-    #     for readable_socket in readable:
-    #         if readable_socket == server_socket:
-    #             client_socket, client_address = server_socket.listen()
-    #             username = registration(client_socket, client_address) #Continue till not valid
+    def conversation_begin(self):
+        sender_pattern         = re.compile(r"^SEND\s[A-Za-z0-9]+$")
+        content_length_pattern = re.compile(r"^Content-length:\s[0-9]+$")
+        while True:
+            line = receive_message(self.client_socket)            
+            if(line.split(" ")[0] == "SEND"):
+                if len(line.split("\n",3))!=4:
+                    self.client_socket.send(("ERROR 103 Header incomplete\n\n"))
+                    continue
+                sender_line  = line.split("\n")[0]
+                content_line = line.split("\n")[1]
+                if bool(re.match(sender_pattern,sender_line)) and bool(re.match(content_length_pattern, content_line)):
+                    recipient      = sender_line.split(" ")[1]
+                    content_length = int(content_line.split(" ")[1])
+                    message = line.split("\n",3)[-1]
+                    message = message[:content_length]
+                    if recipient in TCP_Server.recvSocket_list.keys():
+                        try:
+                            TCP_Server.recvSocket_list[recipient].send(("FORWARD " + self.username + "\nContent-length: " + str(content_length) + "\n\n" + message).encode(FORMAT))
+                            response = receive_message(TCP_Server.recvSocket_list[recipient])
+                            expected = "RECEIVED " + self.username + "\n\n"
+                            if response == expected:
+                                self.client_socket.send(("SEND " + self.username + "\n\n"))
+                            else:
+                                self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
+                                
+                        except:
+                            self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
+                    else:
+                        self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
+                                        
+            # elif (line.split(" ")[0] == "RECEIVED"):
+            #     sender_username = (line.split(" ")[1]).split("\n")[0]
+            #     TCP_Server.recvSocket_list[sender_username].send(("SEND " + self.username + "\n\n").encode(FORMAT))
                 
-    #         else:
+            else:
+                self.client_socket.send(("ERROR 103 Header incomplete\n\n"))
                 
-    
-        # conn, addr = server_socket.accept()   # Blocking line
-        # thread = threading.Thread(target=handle_client, args=(conn, addr))
-        # thread.start()
         
-if __name__ == '__main__':
-    main()
-
-# # Python program to implement server side of chat room.
-# import socket
-# import select
-# import sys
-# from _thread import *
-
-# """The first argument AF_INET is the address domain of the
-# socket. This is used when we have an Internet Domain with
-# any two hosts The second argument is the type of socket.
-# SOCK_STREAM means that data or characters are read in
-# a continuous flow."""
-# server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-# # checks whether sufficient arguments have been provided
-# if len(sys.argv) != 3:
-#     print ("Correct usage: script, IP address, port number")
-#     exit()
-
-# # takes the first argument from command prompt as IP address
-# IP_address = str(sys.argv[1])
-
-# # takes second argument from command prompt as port number
-# Port = int(sys.argv[2])
-
-# """
-# binds the server to an entered IP address and at the
-# specified port number.
-# The client must be aware of these parameters
-# """
-# server.bind((IP_address, Port))
-
-# """
-# listens for 100 active connections. This number can be
-# increased as per convenience.
-# """
-# server.listen(100)
-
-# list_of_clients = []
-
-# def clientthread(conn, addr):
-
-#     # sends a message to the client whose user object is conn
-#     welcome = "Welcome to this chatroom!"
-#     conn.send(welcome.encode('utf-8'))
-
-#     while True:
-#             try:
-#                 message = conn.recv(2048)
-#                 if message:
-
-#                     """prints the message and address of the
-#                     user who just sent the message on the server
-#                     terminal"""
-#                     print ("<" + addr[0] + "> " + message)
-
-#                     # Calls broadcast function to send message to all
-#                     message_to_send = "<" + addr[0] + "> " + message
-#                     broadcast(message_to_send, conn)
-
-#                 else:
-#                     """message may have no content if the connection
-#                     is broken, in this case we remove the connection"""
-#                     remove(conn)
-
-#             except:
-#                 continue
-
-# """Using the below function, we broadcast the message to all
-# clients who's object is not the same as the one sending
-# the message """
-# def broadcast(message, connection):
-#     for clients in list_of_clients:
-#         if clients!=connection:
-#             try:
-#                 clients.send(message)
-#             except:
-#                 clients.close()
-
-#                 # if the link is broken, we remove the client
-#                 remove(clients)
-
-# """The following function simply removes the object
-# from the list that was created at the beginning of
-# the program"""
-# def remove(connection):
-#     if connection in list_of_clients:
-#         list_of_clients.remove(connection)
-
-# while True:
-
-#     """Accepts a connection request and stores two parameters,
-#     conn which is a socket object for that user, and addr
-#     which contains the IP address of the client that just
-#     connected"""
-#     conn, addr = server.accept()
-
-#     """Maintains a list of clients for ease of broadcasting
-#     a message to all available people in the chatroom"""
-#     list_of_clients.append(conn)
-
-#     # prints the address of the user that just connected
-#     print (addr[0] + " connected")
-
-#     # creates and individual thread for every user
-#     # that connects
-#     start_new_thread(clientthread,(conn,addr))	
-
-# conn.close()
-# server.close()
+if __name__ =="__main__":
+    host = "127.0.0.1"
+    port = 10000
+    server = TCP_Server(host, port)
+    
+    port_pattern = re.compile(r"^[0-9]+$")
+    ip_pattern = re.compile(r"^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$")
+    
+    # if len(sys.argv) != 3:
+    #     raise IOError('Incorrect arguments')
+    # else:
+    #     if (len(sys.argv[1]) == 'localhost' or bool(re.match(ip_pattern, sys.argv[1])) ) and bool(re.match(port_pattern, sys.argv[2])):
+    #         client = TCP_Client(sys.argv[1], sys.argv[2])
+    #     else:
+    #         raise IOError('Incorrect arguments')
+            
+    
