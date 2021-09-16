@@ -3,9 +3,16 @@ import threading
 from _thread import *
 import sys
 import re
+import subprocess
 
 FORMAT = 'utf-8'
 HEADER_LENGTH = 200
+
+
+def remove():
+    tput = subprocess.Popen(['tput','cols'], stdout=subprocess.PIPE)
+    cols = int(tput.communicate()[0].strip())
+    print("\033[A{}\033[A".format(' '*cols))
 
 def receive_message(client_socket):
     try:
@@ -28,10 +35,22 @@ class client_sender:
     def run(self): # waiting for client to type in
         try:            
             while True:
-                line = input("You: ")
+                # line = input(self.username + ">")
+                line = input()
+                if len(line) == 0:
+                    continue
+                if(line[0] != '@'):
+                    print("Mention the recipient name")
+                    continue
                 if(line[0] == '@'):
+                    if len(line.split(" ",1)) != 2:
+                        print("Empty message")
+                        continue
                     line = line.split(" ", 1)
                     recipient = line[0][1:]
+                    if len(recipient) == 0:
+                        print("Mention the recipient name")
+                        continue
                     message  = line[1]
                 else:
                     print("Incorrect Format (Use @ to mention the receipient")
@@ -41,12 +60,17 @@ class client_sender:
                 
                 response = receive_message(self.sendSocket)
                 
+                # print(response)
+                # print(recipient)
+                
                 if response == "SEND " + recipient + "\n\n":
                     print("Message delivered successfully")
                 elif response.split(" ")[1] == "102":
                     print("ERROR 102 Unable to send (Recipient not registered)")
                 elif response.split(" ")[1] == "103":
-                    print("ERROR 103 Header Incomplete")            
+                    print("ERROR 103 Header Incomplete")
+                elif response.split("\n")[0] == "ERROR 101 No user registered ":
+                    print("ERROR 101: Incomplete Registration")
         except:
             print(sys.exc_info[0])
             raise Exception("")
@@ -74,6 +98,8 @@ class client_receiver:
             if bool(re.match(sender_pattern, sender)) and bool(re.match(content_length_pattern, content_length)):
                 sender = line[0].split(" ")[1]
                 content_length = line[1].split(" ")[1]
+                # print ("\033[A                             \033[A")
+                # remove()
                 print(sender + ": " + message)
                 self.recvSocket.send(("RECEIVED " + sender + "\n\n").encode(FORMAT))
             else:
@@ -106,20 +132,19 @@ class TCP_Client:
         
     def send_registration(self):
         while True:
-            self.username = input('Username: ')
+            self.username = input('Username: ').strip()
             self.sendSocket.send(('REGISTER TOSEND ' + self.username + '\n \n').encode(FORMAT))
-            response = receive_message(self.sendSocket)            
-            if response.split(" ")[0] == "REGISTERED":
+            response = receive_message(self.sendSocket).split("\n")[0]
+            if response == ("REGISTERED TOSEND " + self.username):
                 print("\nREGISTERED TOSEND " + self.username)
                 return
-            else:
+            elif response.split("\n")[0] == "ERROR 100 Malformed username":
                 print("Invalid username (Can contain only A-Z, a-z, 0-9 chars) or Username already registered")
 
     def recv_registration(self):        
         self.recvSocket.send(('REGISTER TORECV ' + self.username + '\n \n').encode(FORMAT))        
-        response = receive_message(self.recvSocket)
-        print("recvSocket")
-        if response.split(" ")[0] == "REGISTERED":
+        response = receive_message(self.recvSocket).split("\n")[0]
+        if response == "REGISTERED TORECV " + self.username:
             print("REGISTERED TORECV " + self.username)
             return
                                           
