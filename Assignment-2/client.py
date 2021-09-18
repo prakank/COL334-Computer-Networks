@@ -1,14 +1,15 @@
 import socket
 import threading
 from _thread import *
+import time
 import sys
 import re
 import subprocess
 import argparse
 
 FORMAT = 'utf-8'
-HEADER_LENGTH = 200
-
+HEADER_LENGTH = 1024
+EXIT_PROGRAM = False
 
 def remove():
     tput = subprocess.Popen(['tput','cols'], stdout=subprocess.PIPE)
@@ -37,12 +38,13 @@ class client_sender:
         try:            
             while True:
                 # line = input(self.username + ">")
-                line = input()
+                line = input().strip()
                 if len(line) == 0:
                     continue
                 if(line[0] != '@'):
                     print("Mention the recipient name")
                     continue
+                
                 if(line[0] == '@'):
                     if len(line.split(" ",1)) != 2:
                         print("Empty message")
@@ -53,32 +55,34 @@ class client_sender:
                         print("Mention the recipient name")
                         continue
                     message  = line[1]
+                
                 else:
                     print("Incorrect Format (Use @ to mention the receipient")
                     continue
-                
+
                 self.sendSocket.send(("SEND " + recipient + "\nContent-length: " + str(len(message)) + "\n\n" + message).encode(FORMAT))
                 
-                response = receive_message(self.sendSocket)
-                
-                # print(response)
-                # print(recipient)
+                response = receive_message(self.sendSocket)                
                 
                 if response == "SEND " + recipient + "\n\n":
                     # print("Message delivered successfully")
                     print("",end="")
+                
                 elif response.split(" ")[1] == "102":
-                    print("ERROR 102 Unable to send (Recipient not registered)")
+                    print("ERROR 102 Unable to send")
+                
                 elif response.split(" ")[1] == "103":
-                    print("ERROR 103 Header Incomplete")
+                    print("\nERROR 103 Header Incomplete")
                     print("Connection Closed ...")
-                    return
+                    EXIT_PROGRAM = True
+                    break
+                
                 elif response.split("\n")[0] == "ERROR 101 No user registered ":
                     print("ERROR 101: Incomplete Registration")
         except:
             print(sys.exc_info[0])
             raise Exception("")
-        
+               
 class client_receiver:
     def __init__(self, username, recvSocket):
         self.username = username
@@ -95,11 +99,19 @@ class client_receiver:
             sender_pattern         = re.compile(r"^FORWARD\s[A-Za-z0-9]+$")
             content_length_pattern = re.compile(r"^Content-length:\s[0-9]+$")
             
-            sender         = line[0]
-            content_length = line[1]
-            message        = line[3]
+            if len(line) == 4: 
+                sender         = line[0]
+                content_length = line[1]
+                message        = line[3]
+            
+            elif line[0] == "ERROR 103 Header incomplete":
+                print("\nERROR 103 Header Incomplete")
+                print("Connection Closed ...")
+                return
             
             if bool(re.match(sender_pattern, sender)) and bool(re.match(content_length_pattern, content_length)):
+                # self.recvSocket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))
+                # continue
                 sender = line[0].split(" ")[1]
                 content_length = line[1].split(" ")[1]
                 # print ("\033[A                             \033[A")
@@ -107,17 +119,19 @@ class client_receiver:
                 print(sender + ": " + message)
                 self.recvSocket.send(("RECEIVED " + sender + "\n\n").encode(FORMAT))
             else:
-                self.recvSocket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))                
+                self.recvSocket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))
 
 class TCP_Client:
+    
     def __init__(self, host, port):
         try:
+            print("Trying to connect at HOST: {} and PORT: {}\n".format(host, port))
             self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sendSocket.connect((host, port))
             self.recvSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.recvSocket.connect((host, port))            
         except socket.error as err:
-            raise IOError('Unable to bind receiver socket: {}'.format(err))
+            raise IOError('\n\nUnable to bind receiver socket: {}'.format(err))
 
         self.registration()
         print("--------------------------------Connected to the chatroom--------------------------------")
@@ -129,6 +143,7 @@ class TCP_Client:
         clientReceiver = client_receiver(self.username, self.recvSocket)
         thread3 = threading.Thread(target=clientReceiver.run)
         thread3.start()
+        
 
     def registration(self):
         self.send_registration() #We have a valid Username
@@ -139,6 +154,7 @@ class TCP_Client:
             self.username = input('Username: ').strip()
             self.sendSocket.send(('REGISTER TOSEND ' + self.username + '\n \n').encode(FORMAT))
             response = receive_message(self.sendSocket).split("\n")[0]
+            
             if response == ("REGISTERED TOSEND " + self.username):
                 print("\nREGISTERED TOSEND " + self.username)
                 return
@@ -148,20 +164,23 @@ class TCP_Client:
     def recv_registration(self):        
         self.recvSocket.send(('REGISTER TORECV ' + self.username + '\n \n').encode(FORMAT))        
         response = receive_message(self.recvSocket).split("\n")[0]
+        
         if response == "REGISTERED TORECV " + self.username:
             print("REGISTERED TORECV " + self.username)
             return
                                           
 if __name__ == '__main__':
     
-    port_pattern = re.compile(r"^[0-9]+$")
-    ip_pattern = re.compile(r"^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$")
+    # port_pattern = re.compile(r"^[0-9]+$")
+    # ip_pattern = re.compile(r"^[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$")
     
     parser = argparse.ArgumentParser()
+    parser.add_argument("-ip", type=str,default="127.0.0.1",help="IP address")
+    parser.add_argument("-p", type=int,default=10000,help="PORT")
     opt = parser.parse_args()
-        
-    host = "127.0.0.1"
-    port = 10000
+
+    host = str(opt.ip)
+    port = int(opt.p)
     
     client = TCP_Client(host, port)
     

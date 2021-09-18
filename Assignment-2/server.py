@@ -6,7 +6,7 @@ import re
 import argparse
 
 FORMAT = 'utf-8'
-HEADER_LENGTH = 200
+HEADER_LENGTH = 1024
 
 def receive_message(client_socket):
     try:
@@ -27,22 +27,38 @@ class TCP_Server:
     
     def __init__(self, host, port, max_clients):
         try:
+            if host == "localhost":
+                host = "127.0.0.1"
+            
+            self.host = host
+            self.port = port
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((host, port))
+            self.server_socket.bind((self.host, self.port))
             self.max_clients = max_clients
+            
         except socket.error as err:
             raise IOError('Unable to bind receiver socket: {}'.format(err))
+        
+        
         self.start()
         
     
     def start(self):
+        print("Server Running on HOST: {} and PORT: {}".format(self.host, self.port))
+        print("Waiting for Connection ...\n")
         self.server_socket.listen()
-        while True and len(TCP_Server.recvSocket_list) <= self.max_clients:
-            client_socket, client_address = self.server_socket.accept()
-            client_handler = Handle_Client(client_socket)
-            thread10 = threading.Thread(target=client_handler.run)
-            thread10.start()
+        
+        while True:
+            while len(TCP_Server.recvSocket_list) < self.max_clients:
+                client_socket, client_address = self.server_socket.accept()
+                client_handler = Handle_Client(client_socket)
+                thread10 = threading.Thread(target=client_handler.run)
+                thread10.start()
+            
+        # if len(TCP_Server.recvSocket_list) == self.max_clients:
+        #     print("\nMax Limit Reached ...")
+            
 
 
 class Handle_Client:
@@ -77,8 +93,10 @@ class Handle_Client:
                     TCP_Server.recvSocket_list[username] = self.client_socket
                     print(username + " entered the chatroom!")
                     return
+                
                 elif not bool(re.match(username_pattern, username)):
                     self.client_socket.send(("ERROR 100 Malformed username\n \n").encode(FORMAT))
+                
                 else:
                     self.client_socket.send(("ERROR 101 No user registered \n \n").encode(FORMAT))
             
@@ -92,6 +110,7 @@ class Handle_Client:
         
         while True:
             line = receive_message(self.client_socket)
+            
             if not registered_successfully and (self.username not in TCP_Server.sendSocket_list.keys() or self.username not in TCP_Server.recvSocket_list.keys()):
                 self.client_socket.send(("ERROR 101 No user registered \n \n").encode(FORMAT))
                 continue
@@ -99,12 +118,15 @@ class Handle_Client:
                 registered_successfully = True
             
             if(line.split(" ")[0] == "SEND"):
+                
                 if len(line.split("\n",3))!=4:
                     self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                    TCP_Server.recvSocket_list[self.username].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                    
                     TCP_Server.sendSocket_list.pop(self.username,None)
                     TCP_Server.recvSocket_list.pop(self.username,None)
                     return #Close the socket
-                    continue
+
                 sender_line  = line.split("\n")[0]
                 content_line = line.split("\n")[1]
             
@@ -115,24 +137,29 @@ class Handle_Client:
                     
                     if(len(message) != content_length):
                         self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                        TCP_Server.recvSocket_list[self.username].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT)) #For closing both sockets at Client side
+                        
                         TCP_Server.sendSocket_list.pop(self.username,None)
-                        TCP_Server.recvSocket_list.pop(self.username,None)
+                        TCP_Server.recvSocket_list.pop(self.username,None) #client's connection closed
                         return #Close the socket
-                        continue
-                    # message = message[:content_length]
-            
+                                        
                     if recipient in TCP_Server.recvSocket_list.keys():            
                         try:
                             TCP_Server.recvSocket_list[recipient].send(("FORWARD " + self.username + "\nContent-length: " + str(content_length) + "\n\n" + message).encode(FORMAT))
                             response = receive_message(TCP_Server.recvSocket_list[recipient])
                             expected_recv = "RECEIVED " + self.username + "\n\n"
+
                             if response == expected_recv:
                                 self.client_socket.send(("SEND " + recipient + "\n\n").encode(FORMAT))
+                            
                             elif response == "ERROR 103 Header Incomplete\n\n":
-                                self.client_socket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))
-                                TCP_Server.sendSocket_list.pop(self.username,None)
-                                TCP_Server.recvSocket_list.pop(self.username,None)
-                                return
+                                self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
+                                TCP_Server.sendSocket_list[recipient].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                                TCP_Server.recvSocket_list[recipient].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))                                
+
+                                TCP_Server.sendSocket_list.pop(recipient,None)
+                                TCP_Server.recvSocket_list.pop(recipient,None) #recipient's connection closed
+                            
                             else:
                                 self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
                                 
@@ -141,42 +168,61 @@ class Handle_Client:
                     
                     elif recipient == "ALL":
                         break_condition = False
+                        
                         for recipient in TCP_Server.recvSocket_list.keys():
+                            
                             if recipient == self.username:
-                                continue
+                                continue                            
                             
                             TCP_Server.recvSocket_list[recipient].send(("FORWARD " + self.username + "\nContent-length: " + str(content_length) + "\n\n" + message).encode(FORMAT))
                             response = receive_message(TCP_Server.recvSocket_list[recipient])
                             expected_recv = "RECEIVED " + self.username + "\n\n"
                             
                             if response == "ERROR 103 Header Incomplete\n\n":
-                                self.client_socket.send(("ERROR 103 Header Incomplete\n\n").encode(FORMAT))
+                                print(recipient, "INCOMPLETE")
+                                TCP_Server.sendSocket_list[recipient].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                                TCP_Server.recvSocket_list[recipient].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))                                
+
+                                TCP_Server.sendSocket_list.pop(recipient,None)
+                                TCP_Server.recvSocket_list.pop(recipient,None) #recipient's connection closed
                                 break_condition = True
-                            elif response != expected_recv:
-                                self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
+                                break
+
+                            elif response != expected_recv:                                
                                 break_condition = True
+                                break
                                 
                         if not break_condition:
                             self.client_socket.send(("SEND ALL\n\n").encode(FORMAT))
                             print("\nBroadcast message by " + self.username)
+                        else:
+                            self.client_socket.send(("ERROR 102 Unable to send to ALL\n\n").encode(FORMAT))
                                                                                     
                         recipient = "ALL"
                         
                     else:
                         self.client_socket.send(("ERROR 102 Unable to send\n\n").encode(FORMAT))
-                
-                elif bool(re.match(sender_pattern,sender_line)) and not bool(re.match(content_length_pattern, content_line)):
-                    self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
-                    TCP_Server.sendSocket_list.pop(self.username,None)
-                    TCP_Server.recvSocket_list.pop(self.username,None)
-                    return #Close the socket
+
+                # elif bool(re.match(sender_pattern,sender_line)) and not bool(re.match(content_length_pattern, content_line)):
+                #     self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                #     TCP_Server.recvSocket_list[self.username].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                    
+                #     TCP_Server.sendSocket_list.pop(self.username,None)
+                #     TCP_Server.recvSocket_list.pop(self.username,None)
+                #     return #Close the socket
+
                 else:
                     self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                    TCP_Server.recvSocket_list[self.username].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                    
                     TCP_Server.sendSocket_list.pop(self.username,None)
                     TCP_Server.recvSocket_list.pop(self.username,None)
                     return #Close the socket
+            
             else:
                 self.client_socket.send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                TCP_Server.recvSocket_list[self.username].send(("ERROR 103 Header incomplete\n\n").encode(FORMAT))
+                
                 TCP_Server.sendSocket_list.pop(self.username,None)
                 TCP_Server.recvSocket_list.pop(self.username,None)
                 return #Close the socket
@@ -185,12 +231,14 @@ class Handle_Client:
 if __name__ =="__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n", type=int,default=10,help="Maximum Number of Connections")
+    parser.add_argument("-n", type=int,default=10,help="Maximum Number of Connections")
+    parser.add_argument("-ip", type=str,default="127.0.0.1",help="IP address")
+    parser.add_argument("-p", type=int,default=10000,help="PORT")
     opt = parser.parse_args()
     
-    max_clients = int(opt.n)    
-    host = "127.0.0.1"
-    port = 10000
+    max_clients = int(opt.n)
+    host = str(opt.ip)
+    port = int(opt.p)
     
     server = TCP_Server(host, port, max_clients)
     
@@ -204,5 +252,3 @@ if __name__ =="__main__":
     #         client = TCP_Client(sys.argv[1], sys.argv[2])
     #     else:
     #         raise IOError('Incorrect arguments')
-            
-    
