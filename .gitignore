@@ -10,7 +10,7 @@ Assignment-1/ping_.py
 Assignment-1/traceroute.py
 Assignment-1/report.odt
 
-#Assignment-2
+# Assignment-2
 Assignment-2/tcpclient.java
 Assignment-2/tcpserver.java
 Assignment-2/CryptographyExample.java
@@ -22,3 +22,7 @@ Assignment-2/client copy.py
 Assignment-2/server copy.py
 Assignment-2/*.java
 Assignment-2/report.odt
+
+# Assignment-3
+Assignment-3/ns-allinone-3.29/*
+Assignment-3/ns-allinone-3.29.tar.bz2
