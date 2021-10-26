@@ -178,41 +178,58 @@ MyApp::ScheduleTx (void)
 static void
 CwndChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
-  NS_LOG_UNCOND (Simulator::Now ().GetSeconds () << "\t" << newCwnd);
+  // NS_LOG_UNCOND (Simulator::Now ().GetSeconds () << "\t" << newCwnd);
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << oldCwnd << "\t" << newCwnd << std::endl;
 }
 
 static void
 RxDrop (Ptr<PcapFileWrapper> file, Ptr<const Packet> p)
 {
-  NS_LOG_UNCOND ("RxDrop at " << Simulator::Now ().GetSeconds ());
+  // NS_LOG_UNCOND ("RxDrop at " << Simulator::Now ().GetSeconds ());
   file->Write (Simulator::Now (), p);
 }
 
 int
 main (int argc, char *argv[])
 {
+  int protocol = 1;
   CommandLine cmd;
+  cmd.AddValue ("Protocol", "Protocole Type", protocol);
   cmd.Parse (argc, argv);
+    
+  std::string outputFile = "";
 
-  std::ofstream out("../output/q1_Veno.txt");
+  if (protocol == 1)
+  {
+    outputFile = "output1/q1_NewReno";
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
+  }
+  else if (protocol == 2) 
+  {
+    outputFile = "output1/q1_HighSpeed";
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHighSpeed::GetTypeId ()));
+  }
+  else if (protocol == 3) 
+  {
+    outputFile = "output1/q1_Veno";
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpVeno::GetTypeId ()));
+  }
+  else 
+  {
+    outputFile = "output1/q1_Vegas";
+    Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpVegas::GetTypeId ()));
+  }
 
+  std::cout << outputFile << ", " << protocol << std::endl;
   // Get the rdbuf of clog.
   // We need it to reset the value before exiting.
-  auto old_rdbuf = std::clog.rdbuf();
+  // auto old_rdbuf = std::clog.rdbuf();
 
-  // Set the rdbuf of clog.
-  std::clog.rdbuf(out.rdbuf());
+  // // Set the rdbuf of clog.
+  // std::clog.rdbuf(out.rdbuf());
 
   // Write to clog.
   // The output should go to test.txt
-
-  
-  
-  // Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
-  // Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpHighSpeed::GetTypeId ()));
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpVeno::GetTypeId ()));
-  // Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpVegas::GetTypeId ()));
   
   NodeContainer nodes;
   nodes.Create (2);
@@ -251,11 +268,11 @@ main (int argc, char *argv[])
   app->SetStopTime (Seconds (30.));
 
   AsciiTraceHelper asciiTraceHelper;
-  Ptr<OutputStreamWrapper> stream = asciiTraceHelper.CreateFileStream ("sixth.cwnd");
+  Ptr<OutputStreamWrapper> stream = asciiTraceHelper.CreateFileStream (outputFile + ".cwnd");
   ns3TcpSocket->TraceConnectWithoutContext ("CongestionWindow", MakeBoundCallback (&CwndChange, stream));
 
   PcapHelper pcapHelper;
-  Ptr<PcapFileWrapper> file = pcapHelper.CreateFile ("sixth.pcap", std::ios::out, PcapHelper::DLT_PPP);
+  Ptr<PcapFileWrapper> file = pcapHelper.CreateFile (outputFile + ".pcap", std::ios::out, PcapHelper::DLT_PPP);
   devices.Get (1)->TraceConnectWithoutContext ("PhyRxDrop", MakeBoundCallback (&RxDrop, file));
 
   Simulator::Stop (Seconds (30));
@@ -264,7 +281,7 @@ main (int argc, char *argv[])
   Simulator::Destroy ();
 
   // Reset the rdbuf of clog.
-  std::clog.rdbuf(old_rdbuf);
+  // std::clog.rdbuf(old_rdbuf);
 
 
   return 0;
