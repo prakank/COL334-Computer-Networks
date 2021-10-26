@@ -7,11 +7,11 @@ Part-1 </br>
 Part-2 </br>
 
 ```sh
-./waf --run "scratch/First --CDR==<Value>Mbps --ADR==<Value>Mbps"
+./waf --run "scratch/Second --CDR==<Value>Mbps --ADR==<Value>Mbps"
 ```
 
 Part-3 </br>
 
 ```sh
-./waf --run "scratch/First --Configuration==<1,2,3>"
+./waf --run "scratch/Third --Configuration==<1,2,3>"
 ```

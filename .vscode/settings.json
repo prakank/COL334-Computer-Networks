@@ -2,6 +2,7 @@
     "search.useIgnoreFiles": false,
     "files.associations": {
         "iosfwd": "cpp",
-        "streambuf": "cpp"
+        "streambuf": "cpp",
+        "iostream": "cpp"
     }
 }
