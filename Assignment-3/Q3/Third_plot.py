@@ -14,6 +14,8 @@ def graph_plot(filepath,c,t,x,y,dropped):
     plt.title("Congestion Window Size vs Time (Configuration:{}, TcpSocket:{}, Dropped:{})".format(c,t,dropped), fontsize=8)
     plt.xlabel('Time (sec)', fontsize=8)
     plt.ylabel('Congestion Window',fontsize=8)
+    x_axis = [0, 5, 10, 15, 20, 25, 30]
+    plt.xticks(x_axis)
     plt.savefig(file)
     plt.show()    
 
@@ -42,4 +44,3 @@ for c in configuration:
             
         graph_plot(filepath_part,c,t,x,y,dropped)
     
-

@@ -9,9 +9,9 @@ Protocol = ['NewReno', 'HighSpeed', 'Veno', 'Vegas']
 def graph_plot(filepath,protocol,x,y,dropped):
     file = os.path.join(filepath,'q1_' + protocol + '_plot.png')
     plt.plot(x,y)
-    plt.title(protocol + " (Dropped Packets: {})".format(dropped))
-    plt.xlabel('Time (sec)')
-    plt.ylabel('Congestion Window')
+    plt.title("Congestion Window vs Time (Protocol:{}, Dropped Packets: {})".format(protocol,dropped), fontsize=8)
+    plt.xlabel('Time (sec)',fontsize=8)
+    plt.ylabel('Congestion Window',fontsize=8)
     plt.savefig(file)
     # if protocol == 'Vegas':
     plt.show()    

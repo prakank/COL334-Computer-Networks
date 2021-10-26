@@ -368,7 +368,7 @@ main (int argc, char *argv[])
   app2->SetStopTime (Seconds (25.0));
 
   app3->Setup (ns3TcpSocket3, sinkAddress3, PacketSize, NumOfPackets, DataRate (ApplicationDataRate));
-  nodes.Get (0)->AddApplication(app3);
+  nodes.Get (1)->AddApplication(app3);
   app3->SetStartTime (Seconds (15.0));
   app3->SetStopTime (Seconds (30.0));
 
