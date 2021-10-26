@@ -244,7 +244,7 @@ main (int argc, char *argv[])
 
   NetDeviceContainer devices13, devices23;
   devices13 = ptp1.Install (nodes.Get(0), nodes.Get(2));
-  devices23 = ptp1.Install (nodes.Get(1), nodes.Get(2));
+  devices23 = ptp2.Install (nodes.Get(1), nodes.Get(2));
 
   Ptr<RateErrorModel> em = CreateObject<RateErrorModel> ();
   em->SetAttribute ("ErrorRate", DoubleValue (0.00001));
@@ -306,10 +306,10 @@ main (int argc, char *argv[])
 
   sinkApps1.Start (Seconds (0.0));
   sinkApps1.Stop (Seconds (30.0));
-  sinkApps2.Start (Seconds (0.0));
-  sinkApps2.Stop (Seconds (30.0));
-  sinkApps3.Start (Seconds (0.0));
-  sinkApps3.Stop (Seconds (30.0));
+  // sinkApps2.Start (Seconds (0.0));
+  // sinkApps2.Stop (Seconds (30.0));
+  // sinkApps3.Start (Seconds (0.0));
+  // sinkApps3.Stop (Seconds (30.0));
 
   std::stringstream node1, node2, node3;
   node1 << nodes.Get (0)->GetId ();
@@ -317,8 +317,8 @@ main (int argc, char *argv[])
   node3 << nodes.Get (2)->GetId ();
 
   std::string node1_str = "/NodeList/" + node1.str() + "/$ns3::TcpL4Protocol/SocketType";
-  std::string node2_str = "/NodeList/" + node2.str() + "/$ns3::TcpL4Protocol/SocketType";
-  std::string node3_str = "/NodeList/" + node3.str() + "/$ns3::TcpL4Protocol/SocketType";
+  std::string node2_str = "/NodeList/" + node1.str() + "/$ns3::TcpL4Protocol/SocketType";
+  std::string node3_str = "/NodeList/" + node2.str() + "/$ns3::TcpL4Protocol/SocketType";
 
   TypeIdValue TcpNewReno_config = TypeIdValue (TypeId::LookupByName ("ns3::TcpNewReno"));
   TypeIdValue TcpNewRenoCSE_config = TypeIdValue (TypeId::LookupByName ("ns3::TcpNewRenoCSE"));
